@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jork-AI 多点生活，少点工作</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+    
+    .typing-effect::after {
+      content: '|';
+      animation: blink 1s infinite;
+    }
+    
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+    
+    pre {
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+    
+    code {
+      background-color: #f8f8f8;
+      border-radius: 4px;
+      padding: 2px 4px;
+    }
+    
+    pre code {
+      display: block;
+      padding: 1rem;
+      overflow-x: auto;
+    }
+    
+    .code-block {
+      position: relative;
+      margin: 1rem 0;
+    }
+    
+    .copy-button {
+      position: absolute;
+      top: 0.5rem;
+      right: 0.5rem;
+      background-color: #e5e7eb;
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      cursor: pointer;
+    }
+    
+    .copy-button:hover {
+      background-color: #d1d5db;
+    }
+    
+    .thinking-process {
+      background-color: #f3f4f6;
+      border-left: 4px solid #4f46e5;
+      padding: 1rem;
+      margin: 1rem 0;
+      border-radius: 0.25rem;
+    }
+    
+    .message-content img {
+      max-width: 100%;
+      border-radius: 0.25rem;
+    }
+    
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    
+    ::-webkit-scrollbar-track {
+      background: #f1f1f1;
+    }
+    
+    ::-webkit-scrollbar-thumb {
+      background: #888;
+      border-radius: 4px;
+    }
+    
+    ::-webkit-scrollbar-thumb:hover {
+      background: #555;
+    }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-900">
+  <div class="flex h-screen">
+    <!-- Sidebar -->
+    <div id="sidebar" class="bg-white border-r border-gray-200 w-64 flex-shrink-0 transition-all duration-300 ease-in-out overflow-hidden">
+      <div class="flex flex-col h-full">
+        <div class="p-4 border-b border-gray-200">
+          <button id="new-chat-button" class="flex items-center justify-center w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors">
+            <i class="fas fa-plus mr-2"></i>新对话
+          </button>
+        </div>
+        <div class="p-4 overflow-y-auto flex-grow">
+          <h3 class="text-sm font-medium text-gray-500 mb-2">历史对话</h3>
+          <div id="conversation-history" class="space-y-2">
+            <!-- Conversation history will be dynamically populated -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toggle sidebar button -->
+    <button id="toggle-sidebar" class="fixed left-64 top-4 bg-white border border-gray-200 p-2 rounded-full shadow-sm z-10 transition-all duration-300 ease-in-out">
+      <i class="fas fa-chevron-left"></i>
+    </button>
+
+    <!-- Main content -->
+    <div id="main-content" class="flex-1 flex flex-col overflow-hidden transition-all duration-300 ease-in-out">
+      <!-- Messages area -->
+      <div id="messages-container" class="flex-1 overflow-y-auto p-4">
+        <div id="welcome-message" class="flex items-start p-4 max-w-3xl mx-auto">
+          <div class="flex-shrink-0 mr-4">
+            <div class="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white">
+              <i class="fas fa-robot"></i>
+            </div>
+          </div>
+          <div class="flex-1">
+            <div class="font-medium text-gray-900">DeepSeek AI</div>
+            <div class="message-content prose prose-slate max-w-none">
+              <!-- Welcome message will be inserted here -->
+            </div>
+          </div>
+        </div>
+        <div id="messages" class="space-y-6">
+          <!-- Messages will be dynamically populated -->
+        </div>
+      </div>
+
+      <!-- Input area -->
+      <div class="border-t border-gray-200 bg-white p-4">
+        <div class="max-w-3xl mx-auto">
+          <div class="relative">
+            <textarea id="message-input" class="w-full border border-gray-300 rounded-lg px-4 py-2 pr-24 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" rows="3" placeholder="输入您的问题..."></textarea>
+            <div class="absolute bottom-2 right-2 flex space-x-2">
+              <button id="thinking-button" class="p-2 text-gray-500 hover:text-blue-600 focus:outline-none" title="深度思考">
+                <i class="fas fa-brain"></i>
+              </button>
+              <button id="send-button" class="bg-blue-600 text-white rounded-md px-4 py-1 hover:bg-blue-700 focus:outline-none">
+                发送
+              </button>
+            </div>
+          </div>
+          <div class="flex justify-between items-center mt-2 text-xs text-gray-500">
+            <div class="flex items-center space-x-4">
+              <div class="flex items-center">
+                <span>模型:</span>
+                <select id="model-selector" class="ml-2 bg-transparent border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                  <option value="deepseek-r1">DeepSeek R1</option>
+                  <option value="jork">Jork</option>
+                </select>
+              </div>
+              <div class="flex items-center">
+                <span class="text-gray-500">(Shift + Enter 换行, Enter 发送)</span>
+              </div>
+            </div>
+            <div>
+              <span>当前使用人数较多，回复可能延迟 | 所有内容均由AI生成，仅供参考</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Constants
+    const API_KEY = 'sk-e1ed90c2effc4415beeee85845f66d05';
+    const LS_CONVERSATIONS_KEY = 'deepseekConversations';
+    const LS_CURRENT_CONVO_KEY = 'deepseekCurrentConversation';
+
+    // DOM Elements
+    const messagesContainer = document.getElementById('messages-container');
+    const messagesEl = document.getElementById('messages');
+    const messageInput = document.getElementById('message-input');
+    const sendButton = document.getElementById('send-button');
+    const thinkingButton = document.getElementById('thinking-button');
+    const modelSelector = document.getElementById('model-selector');
+    const sidebar = document.getElementById('sidebar');
+    const mainContent = document.getElementById('main-content');
+    const toggleSidebarBtn = document.getElementById('toggle-sidebar');
+    const newChatButton = document.getElementById('new-chat-button');
+    const conversationHistoryEl = document.getElementById('conversation-history');
+    const welcomeMessageEl = document.getElementById('welcome-message');
+
+    // State
+    let conversations = JSON.parse(localStorage.getItem(LS_CONVERSATIONS_KEY) || '{}');
+    let currentConversationId = localStorage.getItem(LS_CURRENT_CONVO_KEY) || null;
+    let isThinkingModeEnabled = false;
+    let isSidebarVisible = true;
+    let isTyping = false;
+
+    // Initialize the app
+    function init() {
+      setWelcomeMessage();
+      setupEventListeners();
+      loadConversationHistory();
+      
+      if (currentConversationId && conversations[currentConversationId]) {
+        loadConversation(currentConversationId);
+      } else {
+        createNewConversation();
+      }
+    }
+
+    // Set welcome message based on time of day
+    function setWelcomeMessage() {
+      const now = new Date();
+      // Convert to Beijing time (UTC+8)
+      const beijingHour = (now.getUTCHours() + 8) % 24;
+      
+      let greeting;
+      if (beijingHour >= 5 && beijingHour < 12) {
+        greeting = "上午好";
+      } else if (beijingHour >= 12 && beijingHour < 18) {
+        greeting = "中午好";
+      } else {
+        greeting = "晚上好";
+      }
+      
+      welcomeMessageEl.querySelector('.message-content').textContent = `${greeting}，有什么可以帮到你？`;
+    }
+
+    // Setup event listeners
+    function setupEventListeners() {
+      // Send message on button click
+      sendButton.addEventListener('click', sendMessage);
+      
+      // Toggle thinking mode
+      thinkingButton.addEventListener('click', () => {
+        isThinkingModeEnabled = !isThinkingModeEnabled;
+        thinkingButton.classList.toggle('text-blue-600', isThinkingModeEnabled);
+      });
+      
+      // Handle keyboard shortcuts
+      messageInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          sendMessage();
+        }
+      });
+      
+      // Toggle sidebar
+      toggleSidebarBtn.addEventListener('click', toggleSidebar);
+      
+      // Create new conversation
+      newChatButton.addEventListener('click', createNewConversation);
+    }
+
+    // Toggle sidebar visibility
+    function toggleSidebar() {
+      isSidebarVisible = !isSidebarVisible;
+      
+      if (isSidebarVisible) {
+        sidebar.style.width = '16rem';
+        toggleSidebarBtn.style.left = '16rem';
+        toggleSidebarBtn.innerHTML = '<i class="fas fa-chevron-left"></i>';
+      } else {
+        sidebar.style.width = '0';
+        toggleSidebarBtn.style.left = '0';
+        toggleSidebarBtn.innerHTML = '<i class="fas fa-chevron-right"></i>';
+      }
+    }
+
+    // Create a new conversation
+    function createNewConversation() {
+      const id = Date.now().toString();
+      const newConversation = {
+        id,
+        title: '新对话',
+        messages: [],
+        model: modelSelector.value,
+        created: Date.now()
+      };
+      
+      conversations[id] = newConversation;
+      currentConversationId = id;
+      
+      saveConversations();
+      updateConversationHistory();
+      clearMessages();
+      welcomeMessageEl.style.display = 'flex';
+    }
+
+    // Load conversation history
+    function loadConversationHistory() {
+      updateConversationHistory();
+    }
+
+    // Update conversation history in sidebar
+    function updateConversationHistory() {
+      conversationHistoryEl.innerHTML = '';
+      
+      const sortedConversations = Object.values(conversations).sort((a, b) => b.created - a.created);
+      
+      sortedConversations.forEach(conversation => {
+        const convoEl = document.createElement('div');
+        convoEl.className = `p-2 rounded-md cursor-pointer hover:bg-gray-100 ${conversation.id === currentConversationId ? 'bg-gray-100' : ''}`;
+        convoEl.innerHTML = `
+          <div class="flex justify-between items-center">
+            <div class="truncate text-sm">${escapeHTML(conversation.title)}</div>
+            <button class="delete-conversation text-gray-400 hover:text-red-500">
+              <i class="fas fa-trash-alt"></i>
+            </button>
+          </div>
+          <div class="text-xs text-gray-500 truncate">${new Date(conversation.created).toLocaleString()}</div>
+        `;
+        
+        convoEl.addEventListener('click', () => loadConversation(conversation.id));
+        convoEl.querySelector('.delete-conversation').addEventListener('click', (e) => {
+          e.stopPropagation();
+          deleteConversation(conversation.id);
+        });
+        
+        conversationHistoryEl.appendChild(convoEl);
+      });
+    }
+
+    // Load a conversation
+    function loadConversation(id) {
+      if (!conversations[id]) return;
+      
+      currentConversationId = id;
+      localStorage.setItem(LS_CURRENT_CONVO_KEY, id);
+      
+      clearMessages();
+      welcomeMessageEl.style.display = 'none';
+      
+      modelSelector.value = conversations[id].model || 'deepseek-r1';
+      
+      // Load messages
+      const messages = conversations[id].messages || [];
+      messages.forEach(message => {
+        if (message.role === 'user') {
+          addUserMessage(message.content);
+        } else {
+          addAIMessage(message.content, message.thinking, false);
+        }
+      });
+      
+      updateConversationHistory();
+      scrollToBottom();
+    }
+
+    // Delete a conversation
+    function deleteConversation(id) {
+      if (!confirm('确认删除此对话？')) return;
+      
+      delete conversations[id];
+      saveConversations();
+      
+      if (currentConversationId === id) {
+        createNewConversation();
+      } else {
+        updateConversationHistory();
+      }
+    }
+
+    // Save conversations to localStorage
+    function saveConversations() {
+      localStorage.setItem(LS_CONVERSATIONS_KEY, JSON.stringify(conversations));
+      localStorage.setItem(LS_CURRENT_CONVO_KEY, currentConversationId);
+    }
+
+    // Clear message display
+    function clearMessages() {
+      messagesEl.innerHTML = '';
+    }
+
+    // Send message to API
+    async function sendMessage() {
+      const message = messageInput.value.trim();
+      if (!message || isTyping) return;
+      
+      messageInput.value = '';
+      addUserMessage(message);
+      welcomeMessageEl.style.display = 'none';
+      
+      const model = modelSelector.value;
+      
+      // Update conversation
+      // Update conversation title if it's the first message
+      if (conversations[currentConversationId].messages.length === 0) {
+        conversations[currentConversationId].title = message.length > 20 ? message.substring(0, 20) + '...' : message;
+      }
+      
+      // Save the current model selection to the conversation
+      conversations[currentConversationId].model = model;
+      
+      // Add message to conversation history
+      conversations[currentConversationId].messages.push({
+        role: 'user',
+        content: message
+      });
+      
+      saveConversations();
+      updateConversationHistory();
+      
+      try {
+        const response = await sendToDeepSeekAPI(message, model, isThinkingModeEnabled);
+        addAIMessage(response.answer, response.thinking, true);
+        
+        // Add AI message to conversation history
+        conversations[currentConversationId].messages.push({
+          role: 'assistant',
+          content: response.answer,
+          thinking: response.thinking
+        });
+        
+        saveConversations();
+      } catch (error) {
+        addErrorMessage('请求失败: ' + error.message);
+      }
+    }
+
+    // Send message to DeepSeek API
+    async function sendToDeepSeekAPI(message, model, includeThinking) {
+      const apiKey = API_KEY;
+      const apiUrl = 'https://api.deepseek.com/v1/chat/completions';
+      
+      // Create conversation history from current conversation
+      const conversationHistory = conversations[currentConversationId].messages.map(msg => {
+        return {
+          role: msg.role,
+          content: msg.content
+        };
+      });
+      
+      // Add current message
+      conversationHistory.push({
+        role: "user",
+        content: message
+      });
+      
+      // Determine which model to use based on selector
+      let modelName;
+      if (model === 'deepseek-r1') {
+        modelName = 'deepseek-chat'; // Default DeepSeek model
+      } else if (model === 'jork') {
+        modelName = 'deepseek-jork'; // Jork model
+      }
+      
+      // Add thinking system message if needed
+      if (includeThinking) {
+        conversationHistory.unshift({
+          role: "system",
+          content: "请展示你的思考过程。先详细思考问题，分析关键点，然后再给出最终答案。将思考过程和最终答案分开。思考过程标题为'思考过程：'，最终答案标题为'最终答案：'"
+        });
+      }
+      
+      try {
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`
+          },
+          body: JSON.stringify({
+            model: modelName,
+            messages: conversationHistory,
+            temperature: 0.7,
+            max_tokens: 2048
+          })
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error?.message || '网络请求失败');
+        }
+        
+        const data = await response.json();
+        
+        if (!data.choices || data.choices.length === 0) {
+          throw new Error('API返回数据格式错误');
+        }
+        
+        const assistantResponse = data.choices[0].message.content;
+        
+        // Process the response to separate thinking and answer if thinking mode is enabled
+        let thinking = null;
+        let answer = assistantResponse;
+        
+        if (includeThinking) {
+          // Look for common separators between thinking and answer
+          const separators = [
+            "思考过程：\n\n", "思考过程:\n\n",
+            "最终答案：\n\n", "最终答案:\n\n",
+            "思考结束。\n\n", "思考完毕。\n\n",
+            "**思考过程**\n\n", "**最终答案**\n\n"
+          ];
+          
+          for (const separator of separators) {
+            const parts = assistantResponse.split(separator);
+            if (parts.length > 1) {
+              thinking = parts[0];
+              answer = parts.slice(1).join(separator);
+              break;
+            }
+          }
+          
+          // If no explicit separator is found, try to make a best effort split
+          if (!thinking) {
+            const lines = assistantResponse.split('\n');
+            const thinkingEndIndex = lines.findIndex(line => 
+              line.includes('最终答案') || 
+              line.includes('Final Answer') || 
+              line.includes('结论') ||
+              line.includes('回答：') ||
+              line.includes('回答:')
+            );
+            
+            if (thinkingEndIndex > 0) {
+              thinking = lines.slice(0, thinkingEndIndex).join('\n');
+              answer = lines.slice(thinkingEndIndex + 1).join('\n');
+            }
+          }
+        }
+        
+        return {
+          answer: answer || assistantResponse,
+          thinking: thinking
+        };
+        
+      } catch (error) {
+        console.error('API Error:', error);
+        throw error;
+      }
+    }
+
+    // Add user message to the UI
+    function addUserMessage(message) {
+      const messageHTML = `
+        <div class="flex items-start p-4 max-w-3xl mx-auto">
+          <div class="flex-shrink-0 mr-4">
+            <div class="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-white">
+              <i class="fas fa-user"></i>
+            </div>
+          </div>
+          <div class="flex-1">
+            <div class="font-medium text-gray-900">You</div>
+            <div class="message-content prose prose-slate max-w-none">
+              ${formatMessage(message)}
+            </div>
+          </div>
+        </div>
+      `;
+      
+      messagesEl.insertAdjacentHTML('beforeend', messageHTML);
+      scrollToBottom();
+    }
+
+    // Add AI message to the UI
+    function addAIMessage(message, thinking, animate) {
+      const messageId = `ai-message-${Date.now()}`;
+      const thinkingId = thinking ? `thinking-${Date.now()}` : null;
+      
+      const messageHTML = `
+        <div class="flex items-start p-4 max-w-3xl mx-auto">
+          <div class="flex-shrink-0 mr-4">
+            <div class="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white">
+              <i class="fas fa-robot"></i>
+            </div>
+          </div>
+          <div class="flex-1">
+            <div class="font-medium text-gray-900">DeepSeek AI</div>
+            ${thinking ? `<div id="${thinkingId}" class="thinking-process mb-4" style="display: none;">
+              <div class="text-sm font-medium text-gray-700 mb-1">思考过程：</div>
+              <div class="text-gray-700 whitespace-pre-line">${escapeHTML(thinking)}</div>
+            </div>` : ''}
+            <div id="${messageId}" class="message-content prose prose-slate max-w-none ${animate ? 'typing-effect' : ''}"></div>
+          </div>
+        </div>
+      `;
+      
+      messagesEl.insertAdjacentHTML('beforeend', messageHTML);
+      
+      const messageEl = document.getElementById(messageId);
+      
+      if (animate) {
+        isTyping = true;
+        
+        // First show thinking process if available
+        if (thinking && thinkingId) {
+          const thinkingEl = document.getElementById(thinkingId);
+          thinkingEl.style.display = 'block';
+        }
+        
+        // Then animate the message
+        typeMessage(messageEl, formatMessage(message), 10).then(() => {
+          messageEl.classList.remove('typing-effect');
+          isTyping = false;
+        });
+      } else {
+        messageEl.innerHTML = formatMessage(message);
+        
+        // Show thinking if available
+        if (thinking && thinkingId) {
+          const thinkingEl = document.getElementById(thinkingId);
+          thinkingEl.style.display = 'block';
+        }
+      }
+      
+      scrollToBottom();
+    }
+
+    // Add error message to the UI
+    function addErrorMessage(message) {
+      const messageHTML = `
+        <div class="flex items-start p-4 max-w-3xl mx-auto">
+          <div class="flex-shrink-0 mr-4">
+            <div class="w-8 h-8 rounded-full bg-red-600 flex items-center justify-center text-white">
+              <i class="fas fa-exclamation-triangle"></i>
+            </div>
+          </div>
+          <div class="flex-1">
+            <div class="font-medium text-gray-900">错误</div>
+            <div class="message-content text-red-600">
+              ${escapeHTML(message)}
+            </div>
+          </div>
+        </div>
+      `;
+      
+      messagesEl.insertAdjacentHTML('beforeend', messageHTML);
+      scrollToBottom();
+    }
+
+    // Type out a message character by character
+    async function typeMessage(element, html, speedMs) {
+      // Process the HTML to separate plain text from HTML tags
+      const parts = [];
+      let inTag = false;
+      let currentPart = '';
+      
+      for (let i = 0; i < html.length; i++) {
+        if (html[i] === '<' && !inTag) {
+          if (currentPart) {
+            parts.push({ type: 'text', content: currentPart });
+            currentPart = '';
+          }
+          inTag = true;
+          currentPart = '<';
+        } else if (html[i] === '>' && inTag) {
+          currentPart += '>';
+          parts.push({ type: 'html', content: currentPart });
+          currentPart = '';
+          inTag = false;
+        } else {
+          currentPart += html[i];
+        }
+      }
+      
+      if (currentPart) {
+        parts.push({ type: inTag ? 'html' : 'text', content: currentPart });
+      }
+      
+      // Type out each part
+      for (const part of parts) {
+        if (part.type === 'html') {
+          // Render HTML tags immediately
+          element.innerHTML += part.content;
+        } else {
+          // Type out text character by character
+          for (let i = 0; i < part.content.length; i++) {
+            element.innerHTML += part.content[i];
+            scrollToBottom();
+            await new Promise(resolve => setTimeout(resolve, speedMs));
+          }
+        }
+      }
+    }
+
+    // Format message with code highlighting
+    function formatMessage(message) {
+      // Replace code blocks
+      let formattedMessage = message.replace(/```([\s\S]*?)```/g, (match, code) => {
+        // Try to extract language if specified
+        const langMatch = code.match(/^([a-zA-Z0-9_+-]+)\n/);
+        let language = '';
+        
+        if (langMatch) {
+          language = langMatch[1];
+          code = code.substring(langMatch[0].length);
+        }
+        
+        return `<div class="code-block">
+          <div class="bg-gray-100 px-4 py-2 text-xs flex justify-between items-center rounded-t-md">
+            <span>${language || 'code'}</span>
+            <button class="copy-button" onclick="navigator.clipboard.writeText(\`${code.replace(/`/g, '\\`')}\`)">复制</button>
+          </div>
+          <pre><code>${escapeHTML(code)}</code></pre>
+        </div>`;
+      });
+      
+      // Replace inline code
+      formattedMessage = formattedMessage.replace(/`([^`]+)`/g, '<code>$1</code>');
+      
+      // Convert line breaks to <br>
+      formattedMessage = formattedMessage.replace(/\n/g, '<br>');
+      
+      return formattedMessage;
+    }
+
+    // Escape HTML
+    function escapeHTML(text) {
+      return text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    // Scroll to bottom of messages container
+    function scrollToBottom() {
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+
+    // Initialize the app
+    init();
+  </script>
+</body>
+</html>

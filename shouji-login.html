@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mobile Login</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'SF Pro Display', -apple-system, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            min-height: 100dvh;
+            background: linear-gradient(135deg, #1a1c2a, #2d3043);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 15px;
+        }
+
+        .login-card {
+            width: 100%;
+            max-width: 420px;
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(20px);
+            border-radius: 24px;
+            padding: 40px 25px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .login-card::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: conic-gradient(
+                transparent 135deg,
+                #00f7ff 180deg,
+                transparent 225deg
+            );
+            animation: rotate 4s linear infinite;
+            opacity: 0.15;
+            pointer-events: none;
+        }
+
+        @keyframes rotate {
+            100% { transform: rotate(360deg); }
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .title {
+            color: #fff;
+            font-size: 2.2rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+            letter-spacing: -0.5px;
+        }
+
+        .subtitle {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 1rem;
+        }
+
+        .input-field {
+            margin-bottom: 28px;
+            position: relative;
+        }
+
+        .input-field input {
+            user-select: auto !important; /* 确保文本可选 */
+            -webkit-user-select: auto !important;
+            width: 100%;
+            height: 56px;
+            padding: 0 20px;
+            border: none;
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            font-size: 1rem;
+            transition: all 0.2s ease;
+        }
+
+        .input-field input:focus {
+            outline: none;
+            background: rgba(255, 255, 255, 0.15);
+            box-shadow: 0 0 0 2px #00f7ff55;
+        }
+
+        .input-label {
+            position: absolute;
+            left: 20px;
+            top: 18px;
+            color: rgba(255, 255, 255, 0.6);
+            pointer-events: none;
+            transition: all 0.2s ease;
+        }
+
+        .input-field input:focus + .input-label,
+        .input-field input:not(:placeholder-shown) + .input-label {
+            top: -8px;
+            left: 12px;
+            font-size: 0.85rem;
+            color: #00f7ff;
+        }
+
+        .submit-btn {
+            width: 100%;
+            height: 56px;
+            border: none;
+            border-radius: 14px;
+            background: linear-gradient(135deg, #00f7ff, #0066ff);
+            color: #fff;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .submit-btn:active {
+            transform: scale(0.98);
+            box-shadow: 0 0 20px rgba(0, 247, 255, 0.3);
+        }
+
+        .switch-version {
+            text-align: center;
+            margin-top: 25px;
+        }
+
+        .switch-link {
+            display: inline-block;
+            padding: 12px 25px; /* 增大点击区域 */
+            z-index: 2; /* 确保链接在最上层 */
+            position: relative;
+        }
+
+        .switch-link::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            width: 0;
+            height: 1px;
+            background: #00f7ff;
+            transition: all 0.2s ease;
+        }
+
+        .switch-link:hover::after {
+            width: 100%;
+            left: 0;
+        }
+
+        .error-message {
+            color: #ff4d4d;
+            text-align: center;
+            margin-top: 20px;
+            font-size: 0.9rem;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: all 0.3s ease;
+        }
+
+        .error-visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .input-label {
+            z-index: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-card">
+        <div class="header">
+            <h1 class="title">欢迎回来</h1>
+            <p class="subtitle">使用您的账户继续</p>
+        </div>
+        
+        <form id="mobileLogin">
+            <div class="input-field">
+                <input type="text" id="mobileUser" required placeholder=" ">
+                <label class="input-label">用户名</label>
+            </div>
+            
+            <div class="input-field">
+                <input type="password" id="mobilePass" required placeholder=" ">
+                <label class="input-label">密码</label>
+            </div>
+            
+            <button type="submit" class="submit-btn">立即登录</button>
+            <div class="error-message" id="mobileError"></div>
+        </form>
+
+        <div class="switch-version">
+            <a href="index.html" class="switch-link">返回电脑版</a>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('mobileLogin');
+        const errorElement = document.getElementById('mobileError');
+
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const validUsers = ['Evan', 'Kerin', 'Alan'];
+            const username = document.getElementById('mobileUser').value.trim();
+            const password = document.getElementById('mobilePass').value;
+
+            errorElement.classList.remove('error-visible');
+
+            setTimeout(() => {
+                if (validUsers.includes(username) && password === '110131') {
+                    window.location.href = 'shouji-ai.html';
+                } else {
+                    errorElement.textContent = '用户名或密码错误';
+                    errorElement.classList.add('error-visible');
+                    setTimeout(() => {
+                        errorElement.classList.remove('error-visible');
+                    }, 2000);
+                }
+            }, 300);
+        });
+
+        // 输入验证动画
+        document.querySelectorAll('.input-field input').forEach(input => {
+            input.addEventListener('input', () => {
+                if (input.value.trim() !== '') {
+                    input.parentNode.querySelector('.input-label').classList.add('active');
+                } else {
+                    input.parentNode.querySelector('.input-label').classList.remove('active');
+                }
+            });
+        });
+
+        // 新增触摸事件处理
+        document.querySelectorAll('input').forEach(input => {
+            input.addEventListener('touchstart', (e) => {
+                e.stopPropagation(); // 防止事件冒泡
+            }, { passive: true });
+        });
+
+        // 修复链接点击
+        document.querySelector('.switch-link').addEventListener('click', (e) => {
+            window.location.href = 'index.html'; // 显式跳转
+        });
+    </script>
+</body>
+</html>

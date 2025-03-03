@@ -91,6 +91,15 @@
     ::-webkit-scrollbar-thumb:hover {
       background: #555;
     }
+
+    .system-message {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
   </style>
 </head>
 <body class="bg-gray-50 text-gray-900">
@@ -145,6 +154,9 @@
           <div class="relative">
             <textarea id="message-input" class="w-full border border-gray-300 rounded-lg px-4 py-2 pr-24 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" rows="3" placeholder="输入您的问题..."></textarea>
             <div class="absolute bottom-2 right-2 flex space-x-2">
+              <button id="search-button" class="p-2 text-gray-500 hover:text-blue-600 focus:outline-none" title="联网搜索">
+                <i class="fas fa-globe"></i>
+              </button>
               <button id="thinking-button" class="p-2 text-gray-500 hover:text-blue-600 focus:outline-none" title="深度思考">
                 <i class="fas fa-brain"></i>
               </button>
@@ -166,8 +178,9 @@
                 <span class="text-gray-500">(Shift + Enter 换行, Enter 发送)</span>
               </div>
             </div>
-            <div>
-              <span>当前使用人数较多，回复可能延迟 | 所有内容均由AI生成，仅供参考</span>
+            <div class="flex items-center">
+              <span id="points-display" class="mr-2 font-medium">积分: 3000</span>
+              <span>| 当前使用人数较多，回复可能延迟 | 所有内容均由AI生成，仅供参考</span>
             </div>
           </div>
         </div>
@@ -199,6 +212,7 @@
     let conversations = JSON.parse(localStorage.getItem(LS_CONVERSATIONS_KEY) || '{}');
     let currentConversationId = localStorage.getItem(LS_CURRENT_CONVO_KEY) || null;
     let isThinkingModeEnabled = false;
+    let isWebSearchEnabled = false; 
     let isSidebarVisible = true;
     let isTyping = false;
 
@@ -207,6 +221,8 @@
       setWelcomeMessage();
       setupEventListeners();
       loadConversationHistory();
+      updatePointsDisplay(); // 添加这行
+      setupPointsResetTimer(); // 添加这行
       
       if (currentConversationId && conversations[currentConversationId]) {
         loadConversation(currentConversationId);
@@ -237,6 +253,12 @@
     function setupEventListeners() {
       // Send message on button click
       sendButton.addEventListener('click', sendMessage);
+
+      const searchButton = document.getElementById('search-button');
+  searchButton.addEventListener('click', () => {
+    isWebSearchEnabled = !isWebSearchEnabled;
+    searchButton.classList.toggle('text-blue-600', isWebSearchEnabled);
+  });
       
       // Toggle thinking mode
       thinkingButton.addEventListener('click', () => {
@@ -380,15 +402,24 @@
     }
 
     // Send message to API
-    async function sendMessage() {
+    async function  sendMessage() {
       const message = messageInput.value.trim();
       if (!message || isTyping) return;
-      
-      messageInput.value = '';
-      addUserMessage(message);
-      welcomeMessageEl.style.display = 'none';
-      
-      const model = modelSelector.value;
+      // 检查积分是否足够
+  if (!hasEnoughPoints()) {
+    addErrorMessage('您的积分不足，每条消息需要300积分。积分将在每天0点重置。');
+    return;
+  }
+  
+  messageInput.value = '';
+  addUserMessage(message);
+  welcomeMessageEl.style.display = 'none';
+  
+  // 扣除积分
+  deductPoints(POINTS_PER_MESSAGE);
+  updatePointsDisplay();
+  
+  const model = modelSelector.value;
       
       // Update conversation
       // Update conversation title if it's the first message
@@ -727,6 +758,260 @@
     function scrollToBottom() {
       messagesContainer.scrollTop = messagesContainer.scrollHeight;
     }
+
+    // 积分系统常量
+const POINTS_INITIAL = 3000;       // 初始积分
+const POINTS_PER_MESSAGE = 300;    // 每条消息消耗的积分
+const LS_USER_POINTS_KEY = 'deepseekUserPoints';  // 本地存储积分的键名
+
+// 获取用户当前积分
+function getUserPoints() {
+  const pointsData = JSON.parse(localStorage.getItem(LS_USER_POINTS_KEY) || '{}');
+  const today = new Date().toLocaleDateString('zh-CN');
+  
+  // 检查是否需要重置（新的一天或首次使用）
+  if (!pointsData.date || pointsData.date !== today) {
+    // 重置积分
+    const newPointsData = {
+      date: today,
+      points: POINTS_INITIAL
+    };
+    localStorage.setItem(LS_USER_POINTS_KEY, JSON.stringify(newPointsData));
+    return newPointsData.points;
+  }
+  
+  return pointsData.points;
+}
+
+// 扣除积分
+function deductPoints(amount) {
+  const pointsData = JSON.parse(localStorage.getItem(LS_USER_POINTS_KEY) || '{}');
+  const today = new Date().toLocaleDateString('zh-CN');
+  
+  // 如果是新的一天，先重置积分
+  if (!pointsData.date || pointsData.date !== today) {
+    pointsData.date = today;
+    pointsData.points = POINTS_INITIAL;
+  }
+  
+  // 扣除积分
+  pointsData.points -= amount;
+  localStorage.setItem(LS_USER_POINTS_KEY, JSON.stringify(pointsData));
+  
+  return pointsData.points;
+}
+
+// 检查是否有足够积分
+function hasEnoughPoints() {
+  return getUserPoints() >= POINTS_PER_MESSAGE;
+}
+
+// 更新积分显示
+function updatePointsDisplay() {
+  const pointsDisplay = document.getElementById('points-display');
+  if (pointsDisplay) {
+    pointsDisplay.textContent = `积分: ${getUserPoints()}`;
+  }
+}
+
+// 添加积分重置定时器（每天0点重置）
+function setupPointsResetTimer() {
+  const now = new Date();
+  // 计算到今天结束还有多少毫秒
+  const tomorrow = new Date(now);
+  tomorrow.setDate(now.getDate() + 1);
+  tomorrow.setHours(0, 0, 0, 0);
+  
+  const timeToReset = tomorrow - now;
+  
+  // 设置定时器
+  setTimeout(() => {
+    // 重置积分
+    const today = new Date().toLocaleDateString('zh-CN');
+    const newPointsData = {
+      date: today,
+      points: POINTS_INITIAL
+    };
+    localStorage.setItem(LS_USER_POINTS_KEY, JSON.stringify(newPointsData));
+    updatePointsDisplay();
+    
+    // 重新设置定时器，每24小时重置一次
+    setupPointsResetTimer();
+  }, timeToReset);
+}
+
+// 联网搜索功能常量
+const SEARCH_API_KEY = 'AIzaSyBNI9CdAMNdRIBfNLO21RTWXqRrtC2Buv4'; // Google Search API密钥
+const SEARCH_ENGINE_ID = '017576662512468239146:omuauf_lfve'; // 搜索引擎ID
+const SEARCH_RESULTS_COUNT = 3; // 搜索结果数量
+
+// 执行网络搜索
+async function performWebSearch(query) {
+  try {
+    const searchUrl = `https://www.googleapis.com/customsearch/v1?key=${SEARCH_API_KEY}&cx=${SEARCH_ENGINE_ID}&q=${encodeURIComponent(query)}&num=${SEARCH_RESULTS_COUNT}`;
+    
+    const response = await fetch(searchUrl);
+    
+    if (!response.ok) {
+      throw new Error('搜索请求失败');
+    }
+    
+    const data = await response.json();
+    return data.items || [];
+  } catch (error) {
+    console.error('搜索API错误:', error);
+    throw error;
+  }
+}
+
+// 格式化搜索结果为可读文本
+function formatSearchResults(results) {
+  if (!results || results.length === 0) {
+    return "未找到相关搜索结果。";
+  }
+  
+  let formattedResults = "### 搜索结果\n\n";
+  
+  results.forEach((result, index) => {
+    formattedResults += `**${index + 1}. [${result.title}](${result.link})**\n`;
+    formattedResults += `${result.snippet}\n\n`;
+  });
+  
+  return formattedResults;
+}
+
+// 增强AI消息内容，添加网络搜索结果
+async function enhanceMessageWithSearch(message) {
+  try {
+    // 显示搜索中消息
+    addSystemMessage("正在进行网络搜索...");
+    
+    // 执行搜索
+    const searchResults = await performWebSearch(message);
+    
+    // 移除搜索中消息
+    removeLastMessage();
+    
+    // 格式化搜索结果
+    const formattedResults = formatSearchResults(searchResults);
+    
+    // 修改用户消息，增加搜索结果指示
+    return {
+      originalMessage: message,
+      searchResults: formattedResults,
+      enhancedPrompt: `以下是用户的问题和相关的网络搜索结果，请基于这些信息回答问题。\n\n用户问题: ${message}\n\n${formattedResults}\n\n请基于以上搜索结果回答用户问题，并在必要时引用来源。如果搜索结果对回答问题没有帮助，请说明并尽力给出最佳回答。`
+    };
+  } catch (error) {
+    removeLastMessage();
+    addErrorMessage(`搜索失败: ${error.message}`);
+    return { originalMessage: message, enhancedPrompt: message };
+  }
+}
+
+// 添加系统消息
+function addSystemMessage(message) {
+  const messageHTML = `
+    <div class="flex items-start p-4 max-w-3xl mx-auto system-message">
+      <div class="flex-shrink-0 mr-4">
+        <div class="w-8 h-8 rounded-full bg-gray-500 flex items-center justify-center text-white">
+          <i class="fas fa-cog"></i>
+        </div>
+      </div>
+      <div class="flex-1">
+        <div class="font-medium text-gray-900">系统</div>
+        <div class="message-content prose prose-slate max-w-none">
+          ${escapeHTML(message)}
+        </div>
+      </div>
+    </div>
+  `;
+  
+  messagesEl.insertAdjacentHTML('beforeend', messageHTML);
+  scrollToBottom();
+}
+
+// 移除最后一条消息
+function removeLastMessage() {
+  // 查找所有系统消息
+  const systemMessages = document.querySelectorAll('.system-message');
+  if (systemMessages.length > 0) {
+    // 移除最后一条系统消息
+    systemMessages[systemMessages.length - 1].remove();
+  }
+}
+
+// 将网络搜索功能与消息发送集成
+async function sendMessageWithSearch() {
+  const message = messageInput.value.trim();
+  if (!message || isTyping) return;
+  
+  // 检查积分是否足够
+  if (!hasEnoughPoints()) {
+    addErrorMessage('您的积分不足，每条消息需要300积分。积分将在每天0点重置。');
+    return;
+  }
+  
+  messageInput.value = '';
+  addUserMessage(message);
+  welcomeMessageEl.style.display = 'none';
+  
+  // 扣除积分
+  deductPoints(POINTS_PER_MESSAGE);
+  updatePointsDisplay();
+  
+  const model = modelSelector.value;
+  isWebSearchEnabled = document.getElementById('search-button').classList.contains('text-blue-600');
+  
+  try {
+    // 添加消息到对话历史
+    if (conversations[currentConversationId].messages.length === 0) {
+      conversations[currentConversationId].title = message.length > 20 ? message.substring(0, 20) + '...' : message;
+    }
+    
+    conversations[currentConversationId].model = model;
+    conversations[currentConversationId].messages.push({
+      role: 'user',
+      content: message
+    });
+    
+    saveConversations();
+    updateConversationHistory();
+    
+    let finalMessage = message;
+    let searchResultsContent = null;
+    
+    // 如果启用了网络搜索，进行搜索
+    if (isWebSearchEnabled) {
+      const enhancedMessage = await enhanceMessageWithSearch(message);
+      finalMessage = enhancedMessage.enhancedPrompt;
+      searchResultsContent = enhancedMessage.searchResults;
+      
+      // 可选：显示搜索结果给用户
+      if (searchResultsContent) {
+        addSystemMessage(`搜索完成，已找到相关信息`);
+      }
+    }
+    
+    const response = await sendToDeepSeekAPI(finalMessage, model, isThinkingModeEnabled);
+    addAIMessage(response.answer, response.thinking, true);
+    
+    // 添加AI回复到对话历史
+    conversations[currentConversationId].messages.push({
+      role: 'assistant',
+      content: response.answer,
+      thinking: response.thinking
+    });
+    
+    if (searchResultsContent) {
+      // 将搜索内容也记录到对话历史中
+      conversations[currentConversationId].searchResults = searchResultsContent;
+    }
+    
+    saveConversations();
+  } catch (error) {
+    addErrorMessage('请求失败: ' + error.message);
+  }
+}
 
     // Initialize the app
     init();
